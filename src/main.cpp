@@ -1,8 +1,15 @@
 #include <Arduino.h>
 #include "rgb_lcd.h"
+#include <ESP32Encoder.h>
+
+
+#define CLK 23 // A ENCODER 
+#define DT 19 // B ENCODER 
+
 
 rgb_lcd lcd;
-int BP0=0, BP1=2, BP2=12, POT=33, PWM=27;
+ESP32Encoder encoder;
+int BP0=0, BP1=2, BP2=12, POT=33, PWM=27, DIRECTION=26, a;
 int ValBP0=0, ValBP1=0, ValBP2=0, ValPOT=0;
 void setup() {
   // Initialise la liaison avec le terminal
@@ -12,6 +19,7 @@ void setup() {
   pinMode(BP2,INPUT_PULLUP);
   pinMode(POT,INPUT);
   pinMode(PWM,OUTPUT);
+  pinMode(DIRECTION,OUTPUT);
   // Initialise l'écran LCD
   Wire1.setPins(15, 5);
   lcd.begin(8, 2, LCD_5x8DOTS, Wire1);
@@ -19,6 +27,8 @@ void setup() {
   // Initialise PWM
   ledcSetup(0, 500, 10);
   ledcAttachPin(PWM, 0);
+  encoder.attachFullQuad ( DT, CLK );
+  encoder.setCount ( 0 );
 }
 
 void loop() {
@@ -27,19 +37,31 @@ void loop() {
 ValBP0=digitalRead(BP0);
 ValBP1=digitalRead(BP1);
 ValBP2=digitalRead(BP2);
+
 lcd.setCursor(0,0);
 lcd.printf("BP0:%dBP1:%dBP2:%d",ValBP0,ValBP1,ValBP2);
-Serial.printf("BP0:%dBP1:%dBP2:%d\n",ValBP0,ValBP1,ValBP2);
+//Serial.printf("BP0:%dBP1:%dBP2:%d\n",ValBP0,ValBP1,ValBP2);
 
 
 //lecture et affichage du potetiometre
 ValPOT=analogRead(POT);
 lcd.setCursor(0,1);
 lcd.printf("%4d",ValPOT);
-Serial.printf("%4d\n",ValPOT);
+//Serial.printf("%4d\n",ValPOT);
 
 
 //commande pwm
+if (ValBP1 == 0)
+{
+  digitalWrite(DIRECTION, HIGH);
+}
+if (ValBP1 == 1)
+{
+  digitalWrite(DIRECTION, LOW);
+}
 ledcWrite(0, ValPOT/4);
+  long newPosition = encoder.getCount();
+  Serial.println(newPosition);
+
 }
 
