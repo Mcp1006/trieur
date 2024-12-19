@@ -29,34 +29,37 @@ void vTaskPeriodic(void *pvParameters)
 
   while (1)
   {
-    a = encoder.getCount();
-    vts = a - aprecedent;
-    aprecedent = a;
-    erreur = csg - vts;
-    somme = somme + erreur;
-    if(somme < -200) somme = -200;
+    a = encoder.getCount(); //position actuelle
+    vts = a - aprecedent; // calcul de la vitesse grcae à l'écart de position entre 1 temps A et un temps B
+    aprecedent = a; 
+    erreur = csg - vts; // calcul de l'erreur entre la consigne (vitesse demandé) et la vitesse en temps réelle
+    somme = somme + erreur; // calcul de la somme de l'intégrle
+    // limite la somme pour éviter une accélaration trop soudaine
+    if(somme < -200) somme = -200; 
     if(somme > 200) somme = 200;
+    // mise en place de la nouvelle valeur du rapport cyclique pour le signal PWM
     valPWM = Kp * erreur + Ki * somme;
-
+// dans le cas où la valeur est positive
     if (valPWM > 0)
     {
       if (valPWM > 2047)
       {
-        valPWM = 2047;
+        valPWM = 2047; //limite la valeur car codé sur 12 bits signé
       }
-      digitalWrite(DIRECTION, LOW);
+      digitalWrite(DIRECTION, LOW);//ralentit pour ajuster l'erreur
       ledcWrite(0, valPWM);
     }
+    // dans le cas où la valeur est positive
     else
     {
       if (valPWM < -2047)
       {
-        valPWM = -2047;
+        valPWM = -2047; //limite la valeur car codé sur 12 bits signé
       }
-      digitalWrite(DIRECTION, HIGH);
+      digitalWrite(DIRECTION, HIGH);//accelère pour ajuster l'erreur
       ledcWrite(0, -valPWM);
     }
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));//attente de 10 ms avant de recommencé dans la boucle
   }
 }
 
@@ -64,19 +67,22 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS3472
 
 void position(long pos)
 {
-  if (newPosition < ((pos-1) * 103 + 70))
-  {
-    csg = 1;
-  }
-  if (newPosition > ((pos-1) * 103 + 70))
-  {
-    csg = -1;
-  }
-  if((newPosition < ((pos-1) * 103 + 75)) && (newPosition > ((pos-1) * 103 + 65)))
-  {
-    csg = 0;
-  }
-
+    if ((newPosition < ((pos-1) * 103 + 75)) && (newPosition > ((pos-1) * 103 + 65)))
+    {
+      csg = 0;
+    }
+    else 
+    {
+      if (newPosition < ((pos-1) * 103 + 65))
+      {
+        csg = 1;
+      }
+      if (newPosition > ((pos-1) * 103 + 75))
+      {
+        csg = -1;
+      }
+    }
+    
 }
 
 void setup()
@@ -141,38 +147,43 @@ void loop()
   // Serial.printf("BP0:%dBP1:%dBP2:%d\n",ValBP0,ValBP1,ValBP2);
 
   // lecture et affichage du potetiometre
-  ValPOT = analogRead(POT);
   // lcd.setCursor(0,1);
   // lcd.printf("%4d",ValPOT);
   // Serial.printf("%4d\n",ValPOT);
 
-  // commande pwm
+  //ValPOT = analogRead(POT);                          //lecture pot
+  //newValPOT = map(ValPOT, 0, 4095, 3800,  5800);     //mappage de la plage du pot sur la plage d'action 
+  //ledcWrite(2, newValPOT);                           //commande su servo par rapport au pot
 
-  // ledcWrite(0, ValPOT/4);
+  //ledcWrite(0, ValPOT/4);
+  //if (ValBP0 == 0)ledcWrite(DIRECTION, HIGH);
+  //else ledcWrite(DIRECTION, LOW);
+
    tour = encoder.getCount()/825;
    newPosition = encoder.getCount() - 825*tour;
-   
+    Serial.printf("%4d\n",newPosition);
   
   float red, green, blue;
 
   tcs.setInterrupt(false); // turn on LED
 
-  // delay(60);  // takes 50ms to read
-
   tcs.getRGB(&red, &green, &blue);
 
   tcs.setInterrupt(true); // turn off LED
-/*
-   Serial.print("R:\t"); Serial.print(int(red));
+
+ lcd.setRGB(red, green, blue);
+
+ /*Serial.print("R:\t"); Serial.print(int(red));
    Serial.print("\tG:\t"); Serial.print(int(green));
    Serial.print("\tB:\t"); Serial.print(int(blue));
    Serial.print("\t");
    Serial.print((int)red, HEX); Serial.print((int)green, HEX); Serial.print((int)blue, HEX);
-   Serial.print("\n");
-*/
-   lcd.setRGB(red, green, blue);
+   Serial.print("\n");*/
+   
 
-newValPOT = map(ValPOT, 0, 4095, 0,  65000);
+  
+
+
 
 switch (etat){
   case 0 : 
@@ -187,7 +198,7 @@ switch (etat){
   }
 }
   lcd.printf("%8d", newValPOT);
-  ledcWrite(2, newValPOT);
+  
   delay(100);
 }
 
