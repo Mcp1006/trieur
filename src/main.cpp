@@ -4,12 +4,16 @@
 #include "Adafruit_TCS34725.h"
 #include <SPI.h>
 #include <Arduino.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+
 
 #define CLK 23 // A ENCODER
 #define DT 19  // B ENCODER
+
 rgb_lcd lcd;
 ESP32Encoder encoder;
-int BP0 = 0, BP1 = 2, BP2 = 12, POT = 33, PWM = 27, DIRECTION = 26, csg, CNY70 = 36, ETAT = 0, lux, i = 0, vts = 0, erreur = 0, valPWM = 250, somme = 0;
+int BP0 = 0, BP1 = 2, BP2 = 12, POT = 33, PWM = 27, DIRECTION = 26, csg, CNY70 = 36, etat = 0, lux, i = 0, vts = 0, erreur = 0, valPWM = 250, somme = 0, tour, SERVO = 13, newValPOT=0;
 int ValBP0 = 0, ValBP1 = 0, ValBP2 = 0, ValPOT = 0, ValCNY70 = 0;
 long newPosition;
 
@@ -60,20 +64,19 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS3472
 
 void position(long pos)
 {
-  lcd.setCursor(0, 1);
-  lcd.printf("nbTour:%3d", pos);
-  if (newPosition < (pos * 102))
+  if (newPosition < ((pos-1) * 103 + 70))
   {
-    csg = 2;
+    csg = 1;
   }
-  if (newPosition > (pos * 102))
+  if (newPosition > ((pos-1) * 103 + 70))
   {
-    csg = -2;
+    csg = -1;
   }
-  if (newPosition == (pos * 102))
+  if((newPosition < ((pos-1) * 103 + 75)) && (newPosition > ((pos-1) * 103 + 65)))
   {
     csg = 0;
   }
+
 }
 
 void setup()
@@ -85,6 +88,7 @@ void setup()
   pinMode(BP2, INPUT_PULLUP);
   pinMode(POT, INPUT);
   pinMode(PWM, OUTPUT);
+  pinMode(SERVO, OUTPUT);
   pinMode(DIRECTION, OUTPUT);
   pinMode(CNY70, INPUT);
   // Initialise l'écran LCD
@@ -94,6 +98,9 @@ void setup()
   // Initialise PWM
   ledcSetup(0, 500, 10);
   ledcAttachPin(PWM, 0);
+  
+  ledcSetup(2, 50, 16);
+  ledcAttachPin(SERVO, 2);
   encoder.attachFullQuad(DT, CLK);
   encoder.setCount(0);
 
@@ -142,9 +149,10 @@ void loop()
   // commande pwm
 
   // ledcWrite(0, ValPOT/4);
-
-   newPosition = encoder.getCount();
-   Serial.println(newPosition);
+   tour = encoder.getCount()/825;
+   newPosition = encoder.getCount() - 825*tour;
+   
+  
   float red, green, blue;
 
   tcs.setInterrupt(false); // turn on LED
@@ -154,20 +162,32 @@ void loop()
   tcs.getRGB(&red, &green, &blue);
 
   tcs.setInterrupt(true); // turn off LED
-
+/*
    Serial.print("R:\t"); Serial.print(int(red));
    Serial.print("\tG:\t"); Serial.print(int(green));
    Serial.print("\tB:\t"); Serial.print(int(blue));
    Serial.print("\t");
    Serial.print((int)red, HEX); Serial.print((int)green, HEX); Serial.print((int)blue, HEX);
    Serial.print("\n");
+*/
    lcd.setRGB(red, green, blue);
 
-switch (ETAT){
+newValPOT = map(ValPOT, 0, 4095, 0,  65000);
+
+switch (etat){
   case 0 : 
   {
-
+    if(ValBP0 == 0) {etat=1;}
+    break;
+  }
+  case 1 : 
+  {
+    position(6);
+    break;
   }
 }
-  delay(1000);
+  lcd.printf("%8d", newValPOT);
+  ledcWrite(2, newValPOT);
+  delay(100);
 }
+
